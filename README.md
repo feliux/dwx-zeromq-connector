@@ -1,7 +1,6 @@
 # DWX ZeroMQ Connector  { Python 3 to MetaTrader 4 }
 
 # Latest version: 2.0.1 [(here)](https://github.com/darwinex/dwx-zeromq-connector/tree/master/v2.0.1)
-## (v2.0.2 is currently in beta-testing, please do not upgrade to v2.0.2)
 
 ## Need help? Join the [Darwinex Collective Slack](https://join.slack.com/t/darwinex-collective/shared_invite/enQtNjg4MjA0ODUzODkyLWFiZWZlMDZjNGVmOGE2ZDBiZGI4ZWUxNjM5YTU0MjZkMTQ2NGZjNGIyN2QxZDY4NjUyZmVlNmU3N2E2NGE1Mjk) for code updates, Q&A and more.
 
@@ -113,31 +112,60 @@ _www.darwinex.com_
 1. Copy the contents of **mql-zmq-master/Include/Mql** and **mql-zmq-master/Include/Zmq** into your MetaTrader installation's **MQL4/Include** directory as-is. Your **MQL4/Include** directory should now have two additional folders "Mql" and "Zmq".
 1. Copy **libsodium.dll** and **libzmq.dll** from **mql-zmq-master/Library/MT4** to your MetaTrader installation's **MQL4/Libraries** directory.
 1. Download **DWX_ZeroMQ_Server_vX.Y.Z_RCx.mq4** and place it inside your MetaTrader installation's **MQL4/Experts** directory.
-1. Finally, download **vX.Y.Z / python / api / DWX_ZeroMQ_Connector_vX_Y_Z_RCx.py**.
-
-**Note:** vX_Y_Z_RCx refers to version and release candidate, e.g. v2.0.1_RC8.
+1. Finally, download **v2.0.1 / python / api / DWX_ZeroMQ_Connector_v2_0_1_RC8.py**.
 
 ## Configuration
 
 1. After completing the steps above, terminate and restart MetaTrader 4.
-1. Open any new chart, e.g. EUR/USD M, then drag and drop **DWX_ZeroMQ_Server_vX.Y.Z_RCx**.
+1. Open any new chart, e.g. EUR/USD M, then drag and drop **DWX_ZeroMQ_Server_v2.0.1_RC8**.
 1. Switch to the EA's Inputs tab and customize values as necessary:
 
     ![EA Inputs](resources/images/expert-inputs.png)
-1. Note: Setting **Publish_MarketData** to **True** will cause MetaTrader 4 to begin publishing BID/ASK tick data in real-time for all symbols specified in the array **Publish_Symbols** contained in the .mq4 script. 
-1. Simply modify the Publish_Symbols[] aarray's contents to add/remove required symbols as necessary and re-compile. 
-1. The default list of symbols is:
+1. Note: The variable **Publish_MarketData** was removed in recent versions. There is no need to modify this variable or to manually change the **Publish_Symbols** array. Symbols will automatically be added when the `_DWX_MTX_SEND_TRACKPRICES_REQUEST_()` function is called in python (see code example below). 
 
-	```
-	string Publish_Symbols[7] = {
-	   "EURUSD","GBPUSD","USDJPY","USDCAD","AUDUSD","NZDUSD","USDCHF"
-	};
-	```
+
 	![MetaTrader Publishing Tick Data 1](resources/images/ZeroMQ_Server_Publishing_Symbol_Data.gif)
 	
 	![MetaTrader Publishing Tick Data 2](resources/images/InAction_ZeroMQ_Server_Publishing_Symbol_Data.gif)
 
 ## Example Usage
+
+### Subscribe/Unsubscribe to/from EUR/USD bid/ask prices in real-time:
+```
+# subscribe to data:
+_zmq._DWX_MTX_SUBSCRIBE_MARKETDATA_('EURUSD')
+# tell MT4 to publish data:
+_zmq._DWX_MTX_SEND_TRACKPRICES_REQUEST_(['EURUSD'])
+
+Output:
+[KERNEL] Subscribed to EURUSD BID/ASK updates. See self._Market_Data_DB.
+
+# BID/ASK prices are now being streamed into _zmq._Market_Data_DB.
+_zmq._Market_Data_DB
+
+Output: 
+{'EURUSD': {
+  '2019-01-08 13:46:49.157431': (1.14389, 1.14392),
+  '2019-01-08 13:46:50.673151': (1.14389, 1.14393),
+  '2019-01-08 13:46:51.010993': (1.14392, 1.14395),
+  '2019-01-08 13:46:51.100941': (1.14394, 1.14398),
+  '2019-01-08 13:46:51.205881': (1.14395, 1.14398),
+  '2019-01-08 13:46:52.283107': (1.14394, 1.14397),
+  '2019-01-08 13:46:52.377055': (1.14395, 1.14398),
+  '2019-01-08 13:46:52.777823': (1.14394, 1.14398),
+  '2019-01-08 13:46:52.870773': (1.14395, 1.14398),
+  '2019-01-08 13:46:52.985708': (1.14395, 1.14397),
+  '2019-01-08 13:46:53.080652': (1.14393, 1.14397),
+  '2019-01-08 13:46:53.196584': (1.14394, 1.14398),
+  '2019-01-08 13:46:53.294541': (1.14393, 1.14397)}}
+
+_zmq._DWX_MTX_UNSUBSCRIBE_MARKETDATA('EURUSD')
+
+Output:
+**
+[KERNEL] Unsubscribing from EURUSD
+**
+```
 
 ### Initialize Connector:
 ```
@@ -325,40 +353,6 @@ _zmq._DWX_MTX_CLOSE_ALL_TRADES_()
    '_close_lots': 0.01,
    '_response': 'CLOSE_MARKET'}},
  '_response_value': 'SUCCESS'}
-```
-
-### Subscribe/Unsubscribe to/from EUR/USD bid/ask prices in real-time:
-```
-_zmq._DWX_MTX_SUBSCRIBE_MARKETDATA_('EURUSD')
-
-Output:
-[KERNEL] Subscribed to EURUSD BID/ASK updates. See self._Market_Data_DB.
-
-# BID/ASK prices are now being streamed into _zmq._Market_Data_DB.
-_zmq._Market_Data_DB
-
-Output: 
-{'EURUSD': {
-  '2019-01-08 13:46:49.157431': (1.14389, 1.14392),
-  '2019-01-08 13:46:50.673151': (1.14389, 1.14393),
-  '2019-01-08 13:46:51.010993': (1.14392, 1.14395),
-  '2019-01-08 13:46:51.100941': (1.14394, 1.14398),
-  '2019-01-08 13:46:51.205881': (1.14395, 1.14398),
-  '2019-01-08 13:46:52.283107': (1.14394, 1.14397),
-  '2019-01-08 13:46:52.377055': (1.14395, 1.14398),
-  '2019-01-08 13:46:52.777823': (1.14394, 1.14398),
-  '2019-01-08 13:46:52.870773': (1.14395, 1.14398),
-  '2019-01-08 13:46:52.985708': (1.14395, 1.14397),
-  '2019-01-08 13:46:53.080652': (1.14393, 1.14397),
-  '2019-01-08 13:46:53.196584': (1.14394, 1.14398),
-  '2019-01-08 13:46:53.294541': (1.14393, 1.14397)}}
-
-_zmq._DWX_MTX_UNSUBSCRIBE_MARKETDATA('EURUSD')
-
-Output:
-**
-[KERNEL] Unsubscribing from EURUSD
-**
 ```
 
 ## Video Tutorials
